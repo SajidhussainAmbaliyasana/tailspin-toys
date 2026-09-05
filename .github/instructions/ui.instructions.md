@@ -17,6 +17,7 @@ This file defines the central UI development strategy for Tailspin Toys. Technol
 Refer to technology-specific instruction files:
 - [`astro.instructions.md`](astro.instructions.md) - Astro pages, layouts, and components
 - [`style.instructions.md`](style.instructions.md) - Tailwind CSS styling patterns
+- [`code-quality.instructions.md`](code-quality.instructions.md) - Commenting, documentation, and code style standards
 
 ## Core Principles
 

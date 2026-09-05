@@ -1,3 +1,11 @@
+/**
+ * Database connection and client factory for Drizzle ORM + Node SQLite.
+ *
+ * Provides both programmatic database access (for pages and tests) and
+ * raw SQLite access (for migrations). Uses a singleton pattern to cache
+ * the connection across multiple build-time queries.
+ */
+
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -18,7 +26,12 @@ const DEFAULT_DATABASE_URL = 'file:tailspin.db';
 
 let cachedDb: Database | undefined;
 
-/** Resolve a local SQLite URL to the path expected by Node's built-in driver. */
+/** Resolve a local SQLite URL to the path expected by Node's built-in driver.
+ *
+ * @param url Database URL (e.g., 'file:tailspin.db', ':memory:', or 'file:///absolute/path.db')
+ * @returns The filesystem path or ':memory:' for in-memory databases
+ * @throws Error if URL is not a valid file: URL or :memory:
+ */
 function databasePath(url: string): string {
     if (url === ':memory:') {
         return url;
@@ -37,7 +50,14 @@ function databasePath(url: string): string {
     return filePath;
 }
 
-/** Bridge Drizzle's async SQLite adapter to Node's synchronous built-in driver. */
+/** Bridge Drizzle's async SQLite adapter to Node's synchronous built-in driver.
+ *
+ * Wraps Node's synchronous DatabaseSync in an async callback so Drizzle can
+ * issue queries using its promise-based API without blocking the event loop.
+ *
+ * @param sqlite The synchronous Node SQLite database connection
+ * @returns An async callback function that Drizzle uses to execute SQL
+ */
 function createRemoteCallback(sqlite: DatabaseSync): AsyncRemoteCallback {
     return async (sql: string, params: SQLInputValue[], method: 'run' | 'all' | 'values' | 'get') => {
         const statement = sqlite.prepare(sql);
@@ -59,7 +79,15 @@ function createRemoteCallback(sqlite: DatabaseSync): AsyncRemoteCallback {
     };
 }
 
-/** Run generated migration statements atomically through Node's SQLite driver. */
+/** Run generated migration statements atomically through Node's SQLite driver.
+ *
+ * Wraps all migrations in a transaction so they succeed or fail as one unit.
+ * Used by drizzle-kit during schema migrations.
+ *
+ * @param sqlite The synchronous Node SQLite database connection
+ * @param queries Array of SQL statements to execute
+ * @throws Error if any query fails; database is rolled back atomically
+ */
 export function executeMigrationQueries(sqlite: DatabaseSync, queries: string[]): void {
     sqlite.exec('BEGIN');
     try {
@@ -73,12 +101,23 @@ export function executeMigrationQueries(sqlite: DatabaseSync, queries: string[])
     }
 }
 
-/** Create a Drizzle client for the given local SQLite connection URL. */
+/** Create a Drizzle client for the given local SQLite connection URL.
+ *
+ * @param url Database URL; defaults to DATABASE_URL env var or 'file:tailspin.db'
+ * @returns A Drizzle ORM client configured for the SQLite database
+ */
 export function createDatabase(url: string = process.env.DATABASE_URL ?? DEFAULT_DATABASE_URL): Database {
     return createDatabaseConnection(url).db;
 }
 
-/** Create the Drizzle client and its Node SQLite connection for migration workflows. */
+/** Create the Drizzle client and its Node SQLite connection for migration workflows.
+ *
+ * Used by migration and seeding scripts that need both the ORM layer and
+ * direct access to the SQLite connection for executing raw SQL.
+ *
+ * @param url Database URL; defaults to DATABASE_URL env var or 'file:tailspin.db'
+ * @returns Object containing both the Drizzle client and the underlying Node SQLite connection
+ */
 export function createDatabaseConnection(
     url: string = process.env.DATABASE_URL ?? DEFAULT_DATABASE_URL,
 ): DatabaseConnection {
@@ -88,7 +127,13 @@ export function createDatabaseConnection(
     return { db, sqlite };
 }
 
-/** Shared singleton database client used by pages at build time. */
+/** Shared singleton database client used by pages at build time.
+ *
+ * Caches the database connection so repeated calls in the build process
+ * reuse the same connection, improving performance.
+ *
+ * @returns The cached Drizzle database client
+ */
 export function getDatabase(): Database {
     if (!cachedDb) {
         cachedDb = createDatabase();

@@ -22,7 +22,9 @@ import Menu from '../assets/icons/menu.svg';
 </header>
 
 <script>
-  // Toggle menu visibility when hamburger is clicked
+  // Hamburger menu interactivity: attach click handlers to toggle visibility
+  // and manage focus/accessibility. Keyboard users (Escape) and outside clicks
+  // should both close the menu.
   const menuToggle = document.getElementById('menu-toggle');
   const menu = document.getElementById('menu');
   
@@ -31,13 +33,14 @@ import Menu from '../assets/icons/menu.svg';
       menu.classList.toggle('hidden');
       const isExpanded = !menu.classList.contains('hidden');
       menuToggle.setAttribute('aria-expanded', String(isExpanded));
+      // Move focus to the first link when menu opens for keyboard users
       if (isExpanded) {
         const firstLink = menu.querySelector('a');
         if (firstLink) firstLink.focus();
       }
     });
     
-    // Close menu when clicking outside
+    // Close menu when user clicks outside (don't close if they click on the menu or toggle)
     document.addEventListener('click', (event) => {
       const target = event.target;
       const isClickInside = target instanceof Node && (menuToggle.contains(target) || menu.contains(target));
@@ -47,7 +50,7 @@ import Menu from '../assets/icons/menu.svg';
       }
     });
 
-    // Close menu with Escape key and return focus to toggle button
+    // Close menu and return focus to toggle when Escape is pressed
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && !menu.classList.contains('hidden')) {
         menu.classList.add('hidden');

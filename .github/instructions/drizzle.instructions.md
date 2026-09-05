@@ -45,12 +45,23 @@ import { asc, count, eq } from 'drizzle-orm';
 import type { Database } from './db';
 import { games } from '../../db/schema';
 
+/**
+ * Retrieve all game IDs ordered by title (ascending).
+ * Deterministic ordering ensures static builds are reproducible.
+ *
+ * @param db The injected database client (can be real or in-memory for testing)
+ * @returns Promise resolving to an array of game IDs in title order
+ */
 export async function getAllGameIds(db: Database): Promise<number[]> {
   const rows = await db.select({ id: games.id }).from(games).orderBy(asc(games.title));
   return rows.map((r) => r.id);
 }
 ```
 
+**Guidelines:**
+
+- **Document every exported function** with TSDoc comments describing purpose, parameters, and return value (see [`code-quality.instructions.md`](code-quality.instructions.md) for the full standard).
+- **Document the `db` parameter** in each function to make the injection pattern clear for maintainers and Copilot.
 - Always `order by` a stable column (title) so static builds are deterministic.
 - Map raw rows to the app-facing `Game`/`Publisher`/`Category` types in one place; don't leak Drizzle row shapes into components.
 - Keep ordering/lookup logic in `games.ts`, not in pages.
